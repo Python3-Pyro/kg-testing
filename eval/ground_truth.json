@@ -1,0 +1,122 @@
+[
+  {
+    "id": "gt_01",
+    "question": "What is the total revenue across all sales?",
+    "reference_sql": "SELECT SUM(total_amount) FROM fact_sales;",
+    "tags": ["aggregate"]
+  },
+  {
+    "id": "gt_02",
+    "question": "How many total sales transactions are there?",
+    "reference_sql": "SELECT COUNT(*) FROM fact_sales;",
+    "tags": ["aggregate", "count"]
+  },
+  {
+    "id": "gt_03",
+    "question": "Which product category had the highest total sales revenue?",
+    "reference_sql": "SELECT p.category, SUM(f.total_amount) AS total_revenue FROM fact_sales f JOIN dim_products p ON f.product_sk = p.product_sk GROUP BY p.category ORDER BY total_revenue DESC LIMIT 1;",
+    "tags": ["aggregate", "join", "ranking"]
+  },
+  {
+    "id": "gt_04",
+    "question": "What is the average sale amount across all transactions?",
+    "reference_sql": "SELECT AVG(total_amount) FROM fact_sales;",
+    "tags": ["aggregate"]
+  },
+  {
+    "id": "gt_05",
+    "question": "Who are the top 5 salespersons by total sales amount?",
+    "reference_sql": "SELECT s.salesperson_name, SUM(f.total_amount) AS total_sales FROM fact_sales f JOIN dim_salespersons s ON f.salesperson_sk = s.salesperson_sk GROUP BY s.salesperson_sk, s.salesperson_name ORDER BY total_sales DESC LIMIT 5;",
+    "tags": ["aggregate", "join", "ranking"]
+  },
+  {
+    "id": "gt_06",
+    "question": "How many customers are classified in the 'High Value' segment?",
+    "reference_sql": "SELECT COUNT(*) FROM dim_customers WHERE customer_segment = 'High Value';",
+    "tags": ["filter", "count"]
+  },
+  {
+    "id": "gt_07",
+    "question": "Which store location generated the most total revenue?",
+    "reference_sql": "SELECT st.store_location, SUM(f.total_amount) AS total_revenue FROM fact_sales f JOIN dim_stores st ON f.store_sk = st.store_sk GROUP BY st.store_location ORDER BY total_revenue DESC LIMIT 1;",
+    "tags": ["aggregate", "join", "ranking"]
+  },
+  {
+    "id": "gt_08",
+    "question": "What is the total revenue by quarter in 2024?",
+    "reference_sql": "SELECT d.quarter, SUM(f.total_amount) AS total_revenue FROM fact_sales f JOIN dim_dates d ON f.sales_date::date = d.full_date GROUP BY d.quarter ORDER BY d.quarter;",
+    "tags": ["aggregate", "join", "time"]
+  },
+  {
+    "id": "gt_09",
+    "question": "How many distinct products are in the 'Electronics' category?",
+    "reference_sql": "SELECT COUNT(*) FROM dim_products WHERE category = 'Electronics';",
+    "tags": ["filter", "count"]
+  },
+  {
+    "id": "gt_10",
+    "question": "What is the total budget allocated across all marketing campaigns?",
+    "reference_sql": "SELECT SUM(campaign_budget) FROM dim_campaigns;",
+    "tags": ["aggregate"]
+  },
+  {
+    "id": "gt_11",
+    "question": "Which campaign had the highest total sales attributed to it?",
+    "reference_sql": "SELECT c.campaign_name, SUM(f.total_amount) AS total_sales FROM fact_sales f JOIN dim_campaigns c ON f.campaign_sk = c.campaign_sk GROUP BY c.campaign_name ORDER BY total_sales DESC LIMIT 1;",
+    "tags": ["aggregate", "join", "ranking"]
+  },
+  {
+    "id": "gt_12",
+    "question": "What is the average sale amount for customers in the 'Occasional Shopper' segment?",
+    "reference_sql": "SELECT AVG(f.total_amount) FROM fact_sales f JOIN dim_customers c ON f.customer_sk = c.customer_sk WHERE c.customer_segment = 'Occasional Shopper';",
+    "tags": ["aggregate", "join", "filter"]
+  },
+  {
+    "id": "gt_13",
+    "question": "How many salespersons have the role 'Manager'?",
+    "reference_sql": "SELECT COUNT(*) FROM dim_salespersons WHERE salesperson_role = 'Manager';",
+    "tags": ["filter", "count"]
+  },
+  {
+    "id": "gt_14",
+    "question": "What is the total sales amount for stores of type 'Large Malls / Complexes'?",
+    "reference_sql": "SELECT SUM(f.total_amount) FROM fact_sales f JOIN dim_stores s ON f.store_sk = s.store_sk WHERE s.store_type = 'Large Malls / Complexes';",
+    "tags": ["aggregate", "join", "filter"]
+  },
+  {
+    "id": "gt_15",
+    "question": "Which brand has the highest number of products listed?",
+    "reference_sql": "SELECT brand, COUNT(*) AS product_count FROM dim_products GROUP BY brand ORDER BY product_count DESC LIMIT 1;",
+    "tags": ["aggregate", "ranking"]
+  },
+  {
+    "id": "gt_16",
+    "question": "What was the total revenue generated in January 2024?",
+    "reference_sql": "SELECT SUM(total_amount) FROM fact_sales WHERE sales_date >= '2024-01-01' AND sales_date < '2024-02-01';",
+    "tags": ["aggregate", "time", "filter"]
+  },
+  {
+    "id": "gt_17",
+    "question": "Which customer has made the highest total purchase amount, and what is that amount?",
+    "reference_sql": "SELECT c.first_name, c.last_name, SUM(f.total_amount) AS total_spent FROM fact_sales f JOIN dim_customers c ON f.customer_sk = c.customer_sk GROUP BY c.customer_id, c.first_name, c.last_name ORDER BY total_spent DESC LIMIT 1;",
+    "tags": ["aggregate", "join", "ranking"]
+  },
+  {
+    "id": "gt_18",
+    "question": "How many stores are located in Los Angeles?",
+    "reference_sql": "SELECT COUNT(*) FROM dim_stores WHERE store_location = 'Los Angeles';",
+    "tags": ["filter", "count"]
+  },
+  {
+    "id": "gt_19",
+    "question": "How many sales transactions were handled by salespersons with the role 'Manager'?",
+    "reference_sql": "SELECT COUNT(*) FROM fact_sales f JOIN dim_salespersons s ON f.salesperson_sk = s.salesperson_sk WHERE s.salesperson_role = 'Manager';",
+    "tags": ["aggregate", "join", "filter"]
+  },
+  {
+    "id": "gt_20",
+    "question": "What is the highest single sale amount recorded?",
+    "reference_sql": "SELECT MAX(total_amount) FROM fact_sales;",
+    "tags": ["aggregate"]
+  }
+]
