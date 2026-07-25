@@ -1,24 +1,30 @@
 """Natural-language-to-SQL agent over the retail star schema in Postgres.
 
-Uses a Claude tool-use loop with a single `run_sql` tool. The DB session is
-opened read-only at the Postgres level (defense in depth beyond the keyword
-guard), so no tool-generated SQL can mutate data even under prompt injection.
+Uses a tool-use loop with a single `run_sql` tool, against whichever LLM
+provider/model is selected (see agent/providers.py — Anthropic, native
+OpenAI, or OpenRouter). The DB session is opened read-only at the Postgres
+level (defense in depth beyond the keyword guard), so no tool-generated SQL
+can mutate data even under prompt injection.
+
+Conversation history (the `messages` list threaded through `ask()`) is in
+the selected provider's own wire format, not portable across providers —
+don't pass history captured under one model_key into an agent constructed
+with a different one.
 """
 import os
 import re
 from pathlib import Path
 
-import anthropic
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 
 from agent.base import AgentResult
+from agent.providers import DEFAULT_MODEL_KEY, get_provider
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
-MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5")
 MAX_ROWS = 500
 MAX_TOOL_ITERATIONS = 6
 
@@ -80,8 +86,9 @@ TOOLS = [
 
 
 class SQLAgent:
-    def __init__(self):
-        self._client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    def __init__(self, model_key: str = DEFAULT_MODEL_KEY):
+        self.model_key = model_key
+        self._provider = get_provider(model_key)
         self._conn = psycopg2.connect(
             host=os.environ["POSTGRES_HOST"],
             port=os.environ["POSTGRES_PORT"],
@@ -130,41 +137,28 @@ class SQLAgent:
         result = AgentResult(answer="")
 
         for _ in range(MAX_TOOL_ITERATIONS):
-            response = self._client.messages.create(
-                model=MODEL,
-                max_tokens=2048,
-                system=f"{SCHEMA_DESCRIPTION}",
-                tools=TOOLS,
-                messages=messages,
-            )
+            response = self._provider.call(SCHEMA_DESCRIPTION, TOOLS, messages)
+            result.input_tokens += response.input_tokens
+            result.output_tokens += response.output_tokens
 
             if response.stop_reason != "tool_use":
-                text_parts = [b.text for b in response.content if b.type == "text"]
-                result.answer = "\n".join(text_parts).strip()
-                messages.append({"role": "assistant", "content": response.content})
+                result.answer = response.text
+                self._provider.append_assistant_turn(messages, response)
                 return result, messages
 
-            messages.append({"role": "assistant", "content": response.content})
+            self._provider.append_assistant_turn(messages, response)
             tool_results = []
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
-                if block.name == "run_sql":
-                    query = block.input["query"]
+            for tc in response.tool_calls:
+                if tc["name"] == "run_sql":
+                    query = tc["input"]["query"]
                     result.queries.append(query)
                     tool_output = self.run_sql(query)
                     if "error" not in tool_output:
                         result.last_columns = tool_output["columns"]
                         result.last_rows = tool_output["rows"]
                         result.last_truncated = tool_output["truncated"]
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(tool_output),
-                        }
-                    )
-            messages.append({"role": "user", "content": tool_results})
+                    tool_results.append((tc["id"], tool_output))
+            self._provider.append_tool_results(messages, tool_results)
 
         result.answer = "I couldn't reach a final answer within the tool-call budget."
         return result, messages

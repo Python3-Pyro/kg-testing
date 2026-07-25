@@ -10,3 +10,9 @@ class AgentResult:
     last_columns: list | None = None
     last_rows: list | None = None
     last_truncated: bool = False
+    input_tokens: int = 0  # summed across every Claude API call in the tool-use loop
+    output_tokens: int = 0
+
+    @property
+    def total_tokens(self) -> int:
+        return self.input_tokens + self.output_tokens
