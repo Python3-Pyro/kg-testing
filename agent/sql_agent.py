@@ -6,13 +6,14 @@ guard), so no tool-generated SQL can mutate data even under prompt injection.
 """
 import os
 import re
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import anthropic
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
+
+from agent.base import AgentResult
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -76,15 +77,6 @@ TOOLS = [
         },
     }
 ]
-
-
-@dataclass
-class AgentResult:
-    answer: str
-    sql_queries: list = field(default_factory=list)
-    last_columns: list | None = None
-    last_rows: list | None = None
-    last_truncated: bool = False
 
 
 class SQLAgent:
@@ -159,7 +151,7 @@ class SQLAgent:
                     continue
                 if block.name == "run_sql":
                     query = block.input["query"]
-                    result.sql_queries.append(query)
+                    result.queries.append(query)
                     tool_output = self.run_sql(query)
                     if "error" not in tool_output:
                         result.last_columns = tool_output["columns"]
